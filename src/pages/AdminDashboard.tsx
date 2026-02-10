@@ -16,7 +16,8 @@ import {
   TrendingUp,
   Clock,
   Puzzle,
-  Sparkles
+  Sparkles,
+  MapPin
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -46,6 +47,7 @@ import logo from '@/assets/handrest-logo.jpeg';
 import { PackagesTab } from '@/components/admin/PackagesTab';
 import { AddonsTab } from '@/components/admin/AddonsTab';
 import { CustomFeaturesTab } from '@/components/admin/CustomFeaturesTab';
+import { PanchayathsTab } from '@/components/admin/PanchayathsTab';
 import type { BookingStatus } from '@/types/database';
 
 const statusColors: Record<BookingStatus, string> = {
@@ -57,7 +59,7 @@ const statusColors: Record<BookingStatus, string> = {
   cancelled: 'bg-red-100 text-red-800',
 };
 
-type Tab = 'dashboard' | 'bookings' | 'staff' | 'packages' | 'addons' | 'custom_features' | 'settings';
+type Tab = 'dashboard' | 'bookings' | 'staff' | 'packages' | 'addons' | 'custom_features' | 'panchayaths' | 'settings';
 
 function LoginForm({ onLogin }: { onLogin: (email: string, password: string, loginType: 'email' | 'mobile') => Promise<void> }) {
   const [loginType, setLoginType] = useState<'email' | 'mobile'>('email');
@@ -464,6 +466,7 @@ export default function AdminDashboard() {
     { id: 'packages', icon: Package, label: 'Packages' },
     { id: 'addons', icon: Puzzle, label: 'Add-ons' },
     { id: 'custom_features', icon: Sparkles, label: 'Custom Features' },
+    { id: 'panchayaths', icon: MapPin, label: 'Panchayaths' },
     { id: 'settings', icon: Settings, label: 'Settings' },
   ] as const;
 
@@ -522,6 +525,7 @@ export default function AdminDashboard() {
         {activeTab === 'packages' && <PackagesTab />}
         {activeTab === 'addons' && <AddonsTab />}
         {activeTab === 'custom_features' && <CustomFeaturesTab />}
+        {activeTab === 'panchayaths' && <PanchayathsTab />}
         {activeTab === 'settings' && (
           <div className="text-center py-12 text-muted-foreground">
             Settings coming soon...

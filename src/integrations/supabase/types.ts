@@ -257,6 +257,36 @@ export type Database = {
           },
         ]
       }
+      panchayaths: {
+        Row: {
+          created_at: string
+          display_order: number
+          id: string
+          is_active: boolean
+          name: string
+          updated_at: string
+          ward_count: number
+        }
+        Insert: {
+          created_at?: string
+          display_order?: number
+          id?: string
+          is_active?: boolean
+          name: string
+          updated_at?: string
+          ward_count?: number
+        }
+        Update: {
+          created_at?: string
+          display_order?: number
+          id?: string
+          is_active?: boolean
+          name?: string
+          updated_at?: string
+          ward_count?: number
+        }
+        Relationships: []
+      }
       payments: {
         Row: {
           amount: number
@@ -419,6 +449,38 @@ export type Database = {
           user_id?: string
         }
         Relationships: []
+      }
+      staff_panchayath_assignments: {
+        Row: {
+          created_at: string
+          id: string
+          panchayath_id: string
+          staff_user_id: string
+          ward_numbers: number[]
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          panchayath_id: string
+          staff_user_id: string
+          ward_numbers?: number[]
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          panchayath_id?: string
+          staff_user_id?: string
+          ward_numbers?: number[]
+        }
+        Relationships: [
+          {
+            foreignKeyName: "staff_panchayath_assignments_panchayath_id_fkey"
+            columns: ["panchayath_id"]
+            isOneToOne: false
+            referencedRelation: "panchayaths"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       user_roles: {
         Row: {

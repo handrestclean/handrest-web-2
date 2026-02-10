@@ -16,6 +16,9 @@ import { Badge } from '@/components/ui/badge';
 import { useAuth } from '@/hooks/useAuth';
 import { useBookings, useUpdateBookingStatus } from '@/hooks/useBookings';
 import { useToast } from '@/hooks/use-toast';
+import { supabase } from '@/integrations/supabase/client';
+import { StaffLoginForm } from '@/components/staff/StaffLoginForm';
+import { StaffSignupForm } from '@/components/staff/StaffSignupForm';
 import logo from '@/assets/handrest-logo.jpeg';
 import type { Booking, BookingStatus } from '@/types/database';
 
@@ -28,65 +31,7 @@ const statusColors: Record<BookingStatus, string> = {
   cancelled: 'bg-red-100 text-red-800',
 };
 
-function LoginForm({ onLogin }: { onLogin: (email: string, password: string) => Promise<void> }) {
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [loading, setLoading] = useState(false);
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setLoading(true);
-    await onLogin(email, password);
-    setLoading(false);
-  };
-
-  return (
-    <div className="min-h-screen flex items-center justify-center gradient-hero p-4">
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="w-full max-w-md"
-      >
-        <Card className="shadow-elevated">
-          <CardHeader className="text-center">
-            <img src={logo} alt="HandRest" className="h-20 mx-auto mb-4 rounded-xl" />
-            <CardTitle className="text-2xl text-brand-navy">Staff Login</CardTitle>
-            <p className="text-muted-foreground">HandRest Cleaning Solutions</p>
-          </CardHeader>
-          <CardContent>
-            <form onSubmit={handleSubmit} className="space-y-4">
-              <div>
-                <label className="text-sm font-medium">Email</label>
-                <input
-                  type="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  className="w-full mt-1 px-4 py-3 rounded-lg border border-input bg-background focus:ring-2 focus:ring-brand-teal focus:border-transparent"
-                  placeholder="staff@handrest.com"
-                  required
-                />
-              </div>
-              <div>
-                <label className="text-sm font-medium">Password</label>
-                <input
-                  type="password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  className="w-full mt-1 px-4 py-3 rounded-lg border border-input bg-background focus:ring-2 focus:ring-brand-teal focus:border-transparent"
-                  placeholder="••••••••"
-                  required
-                />
-              </div>
-              <Button type="submit" variant="hero" className="w-full" disabled={loading}>
-                {loading ? 'Signing in...' : 'Sign In'}
-              </Button>
-            </form>
-          </CardContent>
-        </Card>
-      </motion.div>
-    </div>
-  );
-}
+// LoginForm removed - now using StaffLoginForm and StaffSignupForm components
 
 function JobCard({ booking, onStatusUpdate }: { 
   booking: Booking; 
@@ -166,12 +111,25 @@ function JobCard({ booking, onStatusUpdate }: {
 }
 
 export default function StaffApp() {
+  const [authView, setAuthView] = useState<'login' | 'signup'>('login');
   const { user, profile, signIn, signOut, loading: authLoading, role } = useAuth();
   const { data: bookings, isLoading: bookingsLoading } = useBookings();
   const updateStatus = useUpdateBookingStatus();
   const { toast } = useToast();
 
-  const handleLogin = async (email: string, password: string) => {
+  const handleLogin = async (mobile: string, password: string) => {
+    const cleanMobile = mobile.replace(/\D/g, '');
+    const fakeEmail = `${cleanMobile}@staff.handrest.local`;
+    
+    // Also try looking up from profiles in case they were created by admin
+    const { data: profileData } = await supabase
+      .from('profiles')
+      .select('email')
+      .eq('phone', cleanMobile)
+      .single();
+    
+    const email = profileData?.email || fakeEmail;
+    
     const { error } = await signIn(email, password);
     if (error) {
       toast({
@@ -209,7 +167,10 @@ export default function StaffApp() {
   }
 
   if (!user) {
-    return <LoginForm onLogin={handleLogin} />;
+    if (authView === 'signup') {
+      return <StaffSignupForm onSwitchToLogin={() => setAuthView('login')} />;
+    }
+    return <StaffLoginForm onLogin={handleLogin} onSwitchToSignup={() => setAuthView('signup')} />;
   }
 
   // Filter bookings that are assigned or in progress
