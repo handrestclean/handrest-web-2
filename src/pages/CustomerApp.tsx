@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ArrowLeft, Sparkles, Search, LogOut, User } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -30,6 +31,7 @@ export default function CustomerApp() {
   const { data: categories, isLoading: categoriesLoading } = useServiceCategories();
   const createBooking = useCreateBooking();
   const { signOut } = useAuth();
+  const navigate = useNavigate();
   const { toast } = useToast();
 
   const handleSplashComplete = () => setScreen('home');
@@ -144,7 +146,7 @@ export default function CustomerApp() {
                     <User className="w-5 h-5" />
                   </Button>
                 )}
-                <Button variant="ghost" size="icon" onClick={() => signOut()} className="text-muted-foreground">
+                <Button variant="ghost" size="icon" onClick={async () => { await signOut(); navigate('/'); }} className="text-muted-foreground">
                   <LogOut className="w-5 h-5" />
                 </Button>
               </div>
