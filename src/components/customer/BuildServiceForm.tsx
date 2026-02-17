@@ -1,8 +1,7 @@
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Sofa, BedDouble, Shirt, Zap, Wrench, Sparkles, Wind, Layers, Fan, Thermometer, LucideIcon, Check, Plus, Minus, AlertCircle } from 'lucide-react';
+import { Sofa, BedDouble, Shirt, Zap, Wrench, Sparkles, Wind, Layers, Fan, Thermometer, LucideIcon, Plus, Minus, AlertCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Checkbox } from '@/components/ui/checkbox';
 import { useAddonServices } from '@/hooks/useAddons';
 import { useCustomFeatures } from '@/hooks/useCustomFeatures';
 import { useCategoryFeatureMappings } from '@/hooks/useCategoryFeatures';
@@ -10,16 +9,8 @@ import { useCategoryFeatureMappings } from '@/hooks/useCategoryFeatures';
 const MINIMUM_ORDER = 500;
 
 const iconMap: Record<string, LucideIcon> = {
-  sofa: Sofa,
-  'bed-double': BedDouble,
-  shirt: Shirt,
-  zap: Zap,
-  wrench: Wrench,
-  sparkles: Sparkles,
-  wind: Wind,
-  layers: Layers,
-  fan: Fan,
-  thermometer: Thermometer,
+  sofa: Sofa, 'bed-double': BedDouble, shirt: Shirt, zap: Zap, wrench: Wrench,
+  sparkles: Sparkles, wind: Wind, layers: Layers, fan: Fan, thermometer: Thermometer,
 };
 
 interface BuildServiceFormProps {
@@ -29,32 +20,35 @@ interface BuildServiceFormProps {
 }
 
 export function BuildServiceForm({ categoryName, categoryId, onSubmit }: BuildServiceFormProps) {
-  const [selectedFeatures, setSelectedFeatures] = useState<Set<string>>(new Set());
-  const [selectedAddons, setSelectedAddons] = useState<Set<string>>(new Set());
+  const [featureCounts, setFeatureCounts] = useState<Record<string, number>>({});
+  const [addonCounts, setAddonCounts] = useState<Record<string, number>>({});
   const { data: addons, isLoading: addonsLoading } = useAddonServices();
   const { data: allCustomFeatures, isLoading: featuresLoading } = useCustomFeatures();
   const { data: mappings } = useCategoryFeatureMappings();
 
-  // Filter features by category if a category is selected
   const customFeatures = allCustomFeatures?.filter(f => {
-    if (!categoryId || !mappings) return true; // show all if no category
-    // If this feature has no mappings at all, show it everywhere
+    if (!categoryId || !mappings) return true;
     const featureMappings = mappings.filter(m => m.custom_feature_id === f.id);
     if (featureMappings.length === 0) return true;
     return featureMappings.some(m => m.category_id === categoryId);
   });
 
-  const toggle = (set: Set<string>, setFn: React.Dispatch<React.SetStateAction<Set<string>>>, id: string) => {
-    setFn(prev => {
-      const next = new Set(prev);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
-      return next;
+  const updateCount = (
+    setter: React.Dispatch<React.SetStateAction<Record<string, number>>>,
+    id: string,
+    delta: number,
+  ) => {
+    setter(prev => {
+      const current = prev[id] ?? 0;
+      const next = Math.max(0, current + delta);
+      const copy = { ...prev };
+      if (next === 0) delete copy[id]; else copy[id] = next;
+      return copy;
     });
   };
 
-  const featureTotal = customFeatures?.filter(f => selectedFeatures.has(f.id)).reduce((sum, f) => sum + f.price, 0) ?? 0;
-  const addonTotal = addons?.filter(a => selectedAddons.has(a.id)).reduce((sum, a) => sum + a.price, 0) ?? 0;
+  const featureTotal = customFeatures?.reduce((sum, f) => sum + f.price * (featureCounts[f.id] ?? 0), 0) ?? 0;
+  const addonTotal = addons?.reduce((sum, a) => sum + a.price * (addonCounts[a.id] ?? 0), 0) ?? 0;
   const grandTotal = featureTotal + addonTotal;
   const meetsMinimum = grandTotal >= MINIMUM_ORDER;
 
@@ -66,33 +60,30 @@ export function BuildServiceForm({ categoryName, categoryId, onSubmit }: BuildSe
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!meetsMinimum) return;
-    onSubmit(Array.from(selectedFeatures), Array.from(selectedAddons), grandTotal);
+    // Expand counts into repeated IDs for downstream use
+    const featureIds = Object.entries(featureCounts).flatMap(([id, count]) => Array(count).fill(id));
+    const addonIds = Object.entries(addonCounts).flatMap(([id, count]) => Array(count).fill(id));
+    onSubmit(featureIds, addonIds, grandTotal);
   };
 
   const renderItem = (
     item: { id: string; name: string; description: string | null; icon: string; price: number },
-    isSelected: boolean,
-    onToggle: () => void,
-    prefix: string,
+    count: number,
+    onIncrement: () => void,
+    onDecrement: () => void,
     index: number,
   ) => (
-    <motion.label
+    <motion.div
       key={item.id}
       initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ delay: index * 0.04 }}
-      htmlFor={`${prefix}-${item.id}`}
-      className={`flex items-center gap-3 p-4 rounded-xl border cursor-pointer transition-all ${
-        isSelected
+      className={`flex items-center gap-3 p-4 rounded-xl border transition-all ${
+        count > 0
           ? 'border-secondary bg-secondary/5 shadow-soft'
           : 'border-border hover:border-muted-foreground/30'
       }`}
     >
-      <Checkbox
-        id={`${prefix}-${item.id}`}
-        checked={isSelected}
-        onCheckedChange={onToggle}
-      />
       <span className="text-muted-foreground">{getIcon(item.icon)}</span>
       <div className="flex-1 min-w-0">
         <span className="font-medium text-foreground">{item.name}</span>
@@ -100,15 +91,28 @@ export function BuildServiceForm({ categoryName, categoryId, onSubmit }: BuildSe
           <p className="text-xs text-muted-foreground truncate">{item.description}</p>
         )}
       </div>
-      <div className="flex items-center gap-1 shrink-0">
-        {isSelected ? (
-          <Minus className="w-3 h-3 text-destructive" />
-        ) : (
-          <Plus className="w-3 h-3 text-brand-teal" />
-        )}
-        <span className="font-semibold text-brand-teal">₹{item.price}</span>
+      <div className="flex items-center gap-2 shrink-0">
+        <span className="text-sm font-semibold text-brand-teal">₹{item.price}</span>
+        <div className="flex items-center gap-1 bg-muted rounded-lg">
+          <button
+            type="button"
+            onClick={onDecrement}
+            disabled={count === 0}
+            className="p-1.5 rounded-l-lg hover:bg-muted-foreground/10 disabled:opacity-30 transition-colors"
+          >
+            <Minus className="w-3.5 h-3.5" />
+          </button>
+          <span className="w-6 text-center text-sm font-semibold">{count}</span>
+          <button
+            type="button"
+            onClick={onIncrement}
+            className="p-1.5 rounded-r-lg hover:bg-muted-foreground/10 transition-colors"
+          >
+            <Plus className="w-3.5 h-3.5" />
+          </button>
+        </div>
       </div>
-    </motion.label>
+    </motion.div>
   );
 
   const isLoading = addonsLoading || featuresLoading;
@@ -125,7 +129,6 @@ export function BuildServiceForm({ categoryName, categoryId, onSubmit }: BuildSe
       onSubmit={handleSubmit}
       className="space-y-6"
     >
-      {/* Intro */}
       <div className="bg-brand-light-blue rounded-xl p-4">
         <h3 className="font-semibold text-brand-navy">Build Your Service</h3>
         {categoryName && <p className="text-sm text-muted-foreground">{categoryName}</p>}
@@ -134,7 +137,6 @@ export function BuildServiceForm({ categoryName, categoryId, onSubmit }: BuildSe
         </p>
       </div>
 
-      {/* Custom Features */}
       {customFeatures && customFeatures.length > 0 && (
         <div>
           <h4 className="font-semibold text-foreground mb-1">🛠️ Features</h4>
@@ -144,9 +146,9 @@ export function BuildServiceForm({ categoryName, categoryId, onSubmit }: BuildSe
               {customFeatures.map((feature, index) =>
                 renderItem(
                   { ...feature, icon: feature.icon ?? 'sparkles' },
-                  selectedFeatures.has(feature.id),
-                  () => toggle(selectedFeatures, setSelectedFeatures, feature.id),
-                  'feature',
+                  featureCounts[feature.id] ?? 0,
+                  () => updateCount(setFeatureCounts, feature.id, 1),
+                  () => updateCount(setFeatureCounts, feature.id, -1),
                   index,
                 )
               )}
@@ -155,7 +157,6 @@ export function BuildServiceForm({ categoryName, categoryId, onSubmit }: BuildSe
         </div>
       )}
 
-      {/* Add-on Services */}
       <div>
         <h4 className="font-semibold text-foreground mb-1">⚡ Add-on Services</h4>
         <p className="text-xs text-muted-foreground mb-4">Enhance your service with extras.</p>
@@ -164,9 +165,9 @@ export function BuildServiceForm({ categoryName, categoryId, onSubmit }: BuildSe
             {addons?.map((addon, index) =>
               renderItem(
                 { ...addon, icon: addon.icon ?? 'wrench' },
-                selectedAddons.has(addon.id),
-                () => toggle(selectedAddons, setSelectedAddons, addon.id),
-                'addon',
+                addonCounts[addon.id] ?? 0,
+                () => updateCount(setAddonCounts, addon.id, 1),
+                () => updateCount(setAddonCounts, addon.id, -1),
                 index,
               )
             )}
@@ -174,11 +175,11 @@ export function BuildServiceForm({ categoryName, categoryId, onSubmit }: BuildSe
         )}
       </div>
 
-      {/* Live Price Breakdown */}
+      {/* Price Breakdown */}
       <motion.div layout className="bg-card border rounded-xl p-4 space-y-2 shadow-soft">
         <h4 className="font-semibold text-foreground text-sm mb-2">💰 Price Breakdown</h4>
         <AnimatePresence>
-          {customFeatures?.filter(f => selectedFeatures.has(f.id)).map(feature => (
+          {customFeatures?.filter(f => (featureCounts[f.id] ?? 0) > 0).map(feature => (
             <motion.div
               key={feature.id}
               initial={{ opacity: 0, height: 0 }}
@@ -186,11 +187,13 @@ export function BuildServiceForm({ categoryName, categoryId, onSubmit }: BuildSe
               exit={{ opacity: 0, height: 0 }}
               className="flex justify-between text-sm text-muted-foreground overflow-hidden"
             >
-              <span className="flex items-center gap-1"><Plus className="w-3 h-3" /> {feature.name}</span>
-              <span>₹{feature.price.toLocaleString()}</span>
+              <span className="flex items-center gap-1">
+                {feature.name} × {featureCounts[feature.id]}
+              </span>
+              <span>₹{(feature.price * featureCounts[feature.id]).toLocaleString()}</span>
             </motion.div>
           ))}
-          {addons?.filter(a => selectedAddons.has(a.id)).map(addon => (
+          {addons?.filter(a => (addonCounts[a.id] ?? 0) > 0).map(addon => (
             <motion.div
               key={addon.id}
               initial={{ opacity: 0, height: 0 }}
@@ -198,8 +201,10 @@ export function BuildServiceForm({ categoryName, categoryId, onSubmit }: BuildSe
               exit={{ opacity: 0, height: 0 }}
               className="flex justify-between text-sm text-muted-foreground overflow-hidden"
             >
-              <span className="flex items-center gap-1"><Plus className="w-3 h-3" /> {addon.name}</span>
-              <span>₹{addon.price.toLocaleString()}</span>
+              <span className="flex items-center gap-1">
+                {addon.name} × {addonCounts[addon.id]}
+              </span>
+              <span>₹{(addon.price * addonCounts[addon.id]).toLocaleString()}</span>
             </motion.div>
           ))}
         </AnimatePresence>
