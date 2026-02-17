@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { Textarea } from '@/components/ui/textarea';
 import { Sofa, BedDouble, Shirt, Zap, Wrench, Sparkles, Wind, Layers, Fan, Thermometer, LucideIcon, Plus, Minus, AlertCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useAddonServices } from '@/hooks/useAddons';
@@ -22,6 +23,7 @@ interface BuildServiceFormProps {
 export function BuildServiceForm({ categoryName, categoryId, onSubmit }: BuildServiceFormProps) {
   const [featureCounts, setFeatureCounts] = useState<Record<string, number>>({});
   const [addonCounts, setAddonCounts] = useState<Record<string, number>>({});
+  const [customNote, setCustomNote] = useState('');
   const { data: addons, isLoading: addonsLoading } = useAddonServices();
   const { data: allCustomFeatures, isLoading: featuresLoading } = useCustomFeatures();
   const { data: mappings } = useCategoryFeatureMappings();
@@ -173,6 +175,17 @@ export function BuildServiceForm({ categoryName, categoryId, onSubmit }: BuildSe
             )}
           </div>
         )}
+      </div>
+
+      {/* Custom request */}
+      <div>
+        <h4 className="font-semibold text-foreground mb-1">✍️ ഇവയിൽ ഇല്ലാത്തത് ഉണ്ടെങ്കിൽ എഴുതുക</h4>
+        <Textarea
+          value={customNote}
+          onChange={e => setCustomNote(e.target.value)}
+          placeholder="നിങ്ങളുടെ പ്രത്യേക ആവശ്യങ്ങൾ ഇവിടെ എഴുതുക..."
+          className="min-h-[80px]"
+        />
       </div>
 
       {/* Price Breakdown */}
